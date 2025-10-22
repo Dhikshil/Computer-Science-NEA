@@ -1,7 +1,8 @@
 import pygame
 import constants
+import math
 
-class Character(pygame.sprite.Sprite):
+class Character(pygame.sprite.Sprite): 
     def __init__(self, animations):
         super().__init__()
         self.animations = animations
@@ -22,13 +23,16 @@ class Character(pygame.sprite.Sprite):
         self.vel_y = 0
         self.jumping = False
 
-    def move(self, obstacles):
+        self.inventory = ["", "", ""] 
+        self.inventory_pointer = 0
+
+    def move(self, obstacles):  
         # Apply gravity
         self.vel_y += 1
         if self.vel_y > 10:
             self.vel_y = 10
 
-        # Update action
+        # update action
         if self.vel_x != 0:
             self.action = 2  # running
         else:
@@ -60,10 +64,6 @@ class Character(pygame.sprite.Sprite):
                 elif self.vel_y < 0:  # jumping up
                     self.rect.top = obstacle.bottom
                     self.vel_y = 0
-    def draw_at_position(self, surface, position):
-        # Calculate where to draw the image based on the collision rect position
-        image_pos = (position[0] + (self.rect.width - self.image.get_width()) // 2, position[1] + self.rect.height - self.image.get_height())
-        surface.blit(self.image, image_pos)
 
     def jump(self):
         if not self.jumping:  #can only jump if on ground
@@ -91,6 +91,21 @@ class Character(pygame.sprite.Sprite):
         #update image_rect to draw relative to rect (collision box)
         self.image_rect = self.image.get_rect(midbottom=self.rect.midbottom)
 
-    def draw(self, surface):
-        #draw the image at image_rect position
-        surface.blit(self.image, self.image_rect)
+    def is_tile_in_range(self, tile_x, tile_y, obstacles, collisions):
+
+        tile_world_x = tile_x * constants.TILE_SIZE + constants.TILE_SIZE // 2
+        tile_world_y = tile_y * constants.TILE_SIZE + constants.TILE_SIZE // 2
+
+        line_of_sight = ((self.rect.centerx, self.rect.centery) + (tile_world_x, tile_world_y))
+
+        for obstacle in obstacles:
+            if obstacle.clipline(line_of_sight):
+                collisions += 1
+
+        # Calculate distance between player center and tile center
+        return math.sqrt((self.rect.centerx - tile_world_x) ** 2 + (self.rect.centery - tile_world_y) ** 2) <= constants.PLAYER_HIT_RANGE and collisions <= 1
+
+    def draw_at_position(self, surface, position):
+        # Calculate where to draw the image based on the collision rect position
+        image_pos = (position[0] + (self.rect.width - self.image.get_width()) // 2, position[1] + self.rect.height - self.image.get_height())
+        surface.blit(self.image, image_pos)

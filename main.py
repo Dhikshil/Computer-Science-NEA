@@ -32,7 +32,7 @@ for animation_type in knight_animation_types:
             continue
     knight_animations.append(frames)
 
-#Load ground tiles
+#load ground tiles
 #ground tiles array structure
 #[[green_surface], [green_dirt], [stones]]
 ground_sprites = []
@@ -47,7 +47,32 @@ for ground_type in ground_sprite_types:
             continue
     ground_sprites.append(frames)
 
-world = World(ground_sprites, seed=12345)  # Use fixed seed for consistent world
+vegetation_sprites = []
+vegetation_sprite_types = ["tree1", "bush"]
+for vegetation_type in vegetation_sprite_types:
+    frames = []
+    for i in range(1,5):
+        try:
+            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/vegetation/{vegetation_type}/{vegetation_type}_{i}.png").convert_alpha()
+            frames.append(scale_img(image, constants.TILE_SCALE))
+        except FileNotFoundError:
+            continue
+    vegetation_sprites.append(frames)
+
+
+wood_sprites = []
+wood_sprite_types = ["plank"]
+for wood_type in wood_sprite_types:
+    frames = []
+    for i in range(1,5):
+        try:
+            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/vegetation/{wood_type}/{wood_type}_{i}.png").convert_alpha()
+            frames.append(scale_img(image, constants.TILE_SCALE))
+        except FileNotFoundError:
+            continue
+    vegetation_sprites.append(frames)
+
+world = World(ground_sprites, vegetation_sprites, seed=5678)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
 #start player above ground level
@@ -58,9 +83,10 @@ knight.rect.midbottom = (400, surface_height * constants.TILE_SIZE - 10)
 moving_left = False
 moving_right = False
 
+
 #camera variables
-camera_x = 0
-camera_y = 0
+camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
+camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
 
 #main loop
 run = True
@@ -93,16 +119,51 @@ while run:
         knight.vel_x = -constants.PLAYER_SPEED
 
     knight.move(obstacles)
-    
     knight.update()
 
-    player_screen_pos = (knight.rect.x - camera_x, knight.rect.y - camera_y)
-    knight.draw_at_position(screen, player_screen_pos)
+    # Calculate player screen position
+    player_screen_x = knight.rect.x - camera_x
+    player_screen_y = knight.rect.y - camera_y
+    
+    knight.draw_at_position(screen, (player_screen_x, player_screen_y))
 
     #event handler
     for event in pygame.event.get():
         if event.type == QUIT:
             run = False
+        
+        if event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left mouse button
+            #get mouse position
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+            #convert screen coordinates to world coordinates using camera offset
+            world_x = mouse_x + camera_x
+            world_y = mouse_y + camera_y
+            
+            #convert world coordinates to tile coordinates
+            tile_x = world_x // constants.TILE_SIZE
+            tile_y = world_y // constants.TILE_SIZE
+            
+            #check if player is in range of this tile
+            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 0):
+                print("block broken")
+                world.remove_block_at(tile_x, tile_y)
+        
+        if event.type == MOUSEBUTTONDOWN and event.button == 3:  #right mouse button
+            #get mouse position
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+            #convert screen coordinates to world coordinates using camera offset
+            world_x = mouse_x + camera_x
+            world_y = mouse_y + camera_y
+            
+            #convert world coordinates to tile coordinates
+            tile_x = world_x // constants.TILE_SIZE
+            tile_y = world_y // constants.TILE_SIZE
+
+            #check if player is in range of this tile
+            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 1):
+                obstacles = world.add_block_at(tile_x, tile_y, obstacles)
 
         #key pressed
         if event.type == KEYDOWN:

@@ -19,4 +19,7 @@ TILE_SCALE = 3
 PLAYER_SPEED = 5
 
 #background color
-BG = (24,0,12)
+BG = (255,255,255)
+
+#player hit range
+PLAYER_HIT_RANGE = 240
