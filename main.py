@@ -32,7 +32,7 @@ for animation_type in knight_animation_types:
             continue
     knight_animations.append(frames)
 
-#load ground tiles
+#load ground tilesa
 #ground tiles array structure
 #[[green_surface], [green_dirt], [stones]]
 ground_sprites = []
@@ -59,25 +59,26 @@ for vegetation_type in vegetation_sprite_types:
             continue
     vegetation_sprites.append(frames)
 
-
 wood_sprites = []
 wood_sprite_types = ["plank"]
-for wood_type in wood_sprite_types:
+for wood_type in wood_sprite_types: 
     frames = []
     for i in range(1,5):
         try:
-            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/vegetation/{wood_type}/{wood_type}_{i}.png").convert_alpha()
+            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/wood/{wood_type}/{wood_type}_{i}.png").convert_alpha()
             frames.append(scale_img(image, constants.TILE_SCALE))
         except FileNotFoundError:
             continue
-    vegetation_sprites.append(frames)
+    wood_sprites.append(frames)
 
-world = World(ground_sprites, vegetation_sprites, seed=5678)  #use fixed seed for consistent world
+print(vegetation_sprites)
+
+world = World(ground_sprites, vegetation_sprites, wood_sprites, seed=1234)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
-#start player above ground level
-surface_height = world.generate_height_at(knight.rect.centerx // constants.TILE_SIZE)
-knight.rect.midbottom = (400, surface_height * constants.TILE_SIZE - 10)
+surface_y = world.get_surface_y_at_pixel(400)
+
+knight.rect.midbottom = (400, (surface_y) * constants.TILE_SIZE)
 
 #movement variables
 moving_left = False
@@ -101,7 +102,7 @@ while run:
     target_camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
 
     #smooth camera movement
-    camera_speed = 0.1
+    camera_speed = 1
     camera_x += (target_camera_x - camera_x) * camera_speed
     camera_y += (target_camera_y - camera_y) * camera_speed
 
@@ -146,8 +147,9 @@ while run:
             
             #check if player is in range of this tile
             if knight.is_tile_in_range(tile_x, tile_y, obstacles, 0):
-                print("block broken")
                 world.remove_block_at(tile_x, tile_y)
+            
+            
         
         if event.type == MOUSEBUTTONDOWN and event.button == 3:  #right mouse button
             #get mouse position
@@ -161,9 +163,12 @@ while run:
             tile_x = world_x // constants.TILE_SIZE
             tile_y = world_y // constants.TILE_SIZE
 
+            #inflating player's hitbox to check for mouse collision with the tile the player is in
+            tile_rect = knight.rect.inflate(80,80)
+
             #check if player is in range of this tile
-            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 1):
-                obstacles = world.add_block_at(tile_x, tile_y, obstacles)
+            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
+                world.add_block_at(tile_x, tile_y)
 
         #key pressed
         if event.type == KEYDOWN:
@@ -180,6 +185,8 @@ while run:
                 moving_left = False
             if event.key == K_d:
                 moving_right = False
+
+        obstacles = world.get_obstacles_in_area(camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
 
     pygame.display.update()
     clock.tick(constants.FPS)
