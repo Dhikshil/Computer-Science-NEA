@@ -1,10 +1,11 @@
 import pygame
 import constants
+from enemy import Enemy
 from noise import pnoise2
 import random
 
 class World():
-    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, seed=None):
+    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, seed=None):
         self.ground_sprites = ground_sprites
         self.wood_sprites = wood_sprites
         self.vegetation_sprites = vegetation_sprites
@@ -40,6 +41,9 @@ class World():
         self.vegetation_threshold = 0.05  # noise value above which vegetation spawns
         self.tree_vs_bush_threshold = 0.3  # if vegetation noise > this, spawn tree, else bush
         self.vegetation_density = 0.075  # how dense vegetation clusters are
+
+        self.enemies_spawned = []
+        self.enemy_animations = enemy_animations
     
     # create a gradient image of a perlin noise map given (x, y)
     def multi_octave_noise(self, x, y, octaves=4, persistence=0.2, lacunarity=2.5):
@@ -155,6 +159,7 @@ class World():
         key = (chunk_x, chunk_y)
         if key not in self.world:
             self.world[key] = self.generate_chunk(chunk_x, chunk_y)
+            self.spawn_enemies(chunk_x)
 
     def get_tile_at(self, tile_x, tile_y):
         chunk_x = tile_x // self.chunk_size
@@ -201,13 +206,16 @@ class World():
 
         return self.base_height  # fallback so it never returns None
 
-    def get_obstacles_in_area(self, camera_x, camera_y, screen_width, screen_height):
+    def get_obstacles_in_area(self, character, tiles_around_character = 3):
         obstacles = []
 
-        start_x = int(camera_x // constants.TILE_SIZE) - 1
-        end_x = int((camera_x + screen_width) // constants.TILE_SIZE) + 2
-        start_y = int(camera_y // constants.TILE_SIZE) - 1
-        end_y = int((camera_y + screen_height) // constants.TILE_SIZE) + 2
+        character_x = character.rect.left
+        character_y = character.rect.bottom
+
+        start_x = int(character_x // constants.TILE_SIZE) - 1
+        end_x = start_x + tiles_around_character + 1
+        start_y = int(character_y // constants.TILE_SIZE) - 1
+        end_y = start_y + tiles_around_character + 1
 
         for tile_x in range(start_x, end_x):
             for tile_y in range(start_y, end_y):
@@ -218,7 +226,7 @@ class World():
                     )
         return obstacles
     
-    def remove_block_at(self, tile_x, tile_y):
+    def remove_block_at(self, tile_x, tile_y, player):
         chunk_x = tile_x // self.chunk_size
         chunk_y = tile_y // self.chunk_size
 
@@ -229,8 +237,10 @@ class World():
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] = self.tile_types["air_tile"]
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["solid"] = False
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["image_index"] = 0
+            
+                 
 
-    def add_block_at(self, tile_x, tile_y):
+    def add_block_at(self, tile_x, tile_y, player):
         chunk_x = tile_x // self.chunk_size
         chunk_y = tile_y // self.chunk_size
 
@@ -241,6 +251,19 @@ class World():
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] = self.tile_types["wood_tile"]
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["solid"] = True
 
+
+    def spawn_enemies(self, chunk_x):
+        p = 0.3 # probability of an enemy spawning
+
+        while random.random() < p:
+            tile_x = chunk_x * self.chunk_size + random.randint(0, self.chunk_size - 1)
+            tile_y = self.generate_terrain_height(tile_x) - 2
+            
+            enemy = Enemy(self.enemy_animations, spawn_pos = (tile_x * constants.TILE_SIZE + constants.TILE_SIZE // 2, tile_y * constants.TILE_SIZE))
+
+            self.enemies_spawned.append(enemy)
+
+            p *= 0.6
 
     def draw(self, surface, camera_x, camera_y, screen_width, screen_height):
 

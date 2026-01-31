@@ -9,8 +9,8 @@ class Character(pygame.sprite.Sprite):
         self.action = 0 #0 idle, 1 hit, 2 run, 3 roll
         self.frame_index = 0
         self.image = self.animations[self.action][self.frame_index]
-        hitbox_height = 16
-        hitbox_width = 16
+        hitbox_height = constants.TILE_SIZE // constants.TILE_SCALE 
+        hitbox_width = constants.TILE_SIZE // constants.TILE_SCALE
         self.rect = pygame.Rect(0, 0, hitbox_width, hitbox_height)
         self.rect.midbottom = (400, 300)
         self.image_rect = self.image.get_rect(midbottom=self.rect.midbottom)
@@ -23,8 +23,17 @@ class Character(pygame.sprite.Sprite):
         self.vel_y = 0
         self.jumping = False
 
-        self.inventory = ["", "", ""] 
-        self.inventory_pointer = 0
+        self.hotbar = []
+        self.hotbar_pointer = 0
+
+        self.ai_controlled = False
+
+    def update_action(self):
+        # update action
+        if self.vel_x != 0:
+            self.action = 2  # running
+        else:
+            self.action = 0  # idle
 
     def move(self, obstacles):  
         # Apply gravity
@@ -32,11 +41,8 @@ class Character(pygame.sprite.Sprite):
         if self.vel_y > 10:
             self.vel_y = 10
 
-        # update action
-        if self.vel_x != 0:
-            self.action = 2  # running
-        else:
-            self.action = 0  # idle
+        if not self.ai_controlled:
+            self.update_action()
 
         # Check and control player direction
         if self.vel_x < 0:
@@ -96,7 +102,7 @@ class Character(pygame.sprite.Sprite):
         tile_world_x = tile_x * constants.TILE_SIZE + constants.TILE_SIZE // 2
         tile_world_y = tile_y * constants.TILE_SIZE + constants.TILE_SIZE // 2
 
-        line_of_sight = ((self.rect.centerx, self.rect.centery) + (tile_world_x, tile_world_y))
+        line_of_sight = ((self.rect.centerx, self.rect.centery), (tile_world_x, tile_world_y))
 
         for obstacle in obstacles:
             if obstacle.clipline(line_of_sight):

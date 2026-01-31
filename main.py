@@ -2,6 +2,7 @@ import pygame
 from pygame.locals import *
 import constants
 from character import Character
+from enemy import Enemy
 from world import World
 
 pygame.init()
@@ -31,6 +32,18 @@ for animation_type in knight_animation_types:
         except FileNotFoundError:
             continue
     knight_animations.append(frames)
+
+enemy_animations = []
+enemy_animation_types = ["idle", "hit", "run"]
+for animation_type in enemy_animation_types:
+    frames = []
+    for x in range(1, 9):
+        try: 
+            image = image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/enemy1/{animation_type}/enemy1_{x}.png").convert_alpha()
+            frames.append(scale_img(image, constants.PLAYER_SCALE))
+        except FileNotFoundError:
+            continue
+    enemy_animations.append(frames)
 
 #load ground tilesa
 #ground tiles array structure
@@ -71,9 +84,7 @@ for wood_type in wood_sprite_types:
             continue
     wood_sprites.append(frames)
 
-print(vegetation_sprites)
-
-world = World(ground_sprites, vegetation_sprites, wood_sprites, seed=1234)  #use fixed seed for consistent world
+world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, seed=1234)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
 surface_y = world.get_surface_y_at_pixel(400)
@@ -83,7 +94,6 @@ knight.rect.midbottom = (400, (surface_y) * constants.TILE_SIZE)
 #movement variables
 moving_left = False
 moving_right = False
-
 
 #camera variables
 camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
@@ -110,7 +120,7 @@ while run:
     world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
 
     #get obstacles for collision detection
-    obstacles = world.get_obstacles_in_area(camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
+    knight_obstacles = world.get_obstacles_in_area(knight)
 
     #handle input
     knight.vel_x = 0
@@ -119,17 +129,33 @@ while run:
     if moving_left:
         knight.vel_x = -constants.PLAYER_SPEED
 
-    knight.move(obstacles)
+    knight.move(knight_obstacles)
     knight.update()
 
     # Calculate player screen position
     player_screen_x = knight.rect.x - camera_x
     player_screen_y = knight.rect.y - camera_y
-    
+
+
+    for enemy in world.enemies_spawned:
+        if enemy.action == 0:
+            tiles_around_enemy = 1
+            enemy_obstacles = world.get_obstacles_in_area(enemy, tiles_around_enemy)
+        else: 
+            enemy_obstacles = world.get_obstacles_in_area(enemy)
+
+        enemy_screen_x = enemy.rect.x - camera_x 
+        enemy_screen_y = enemy.rect.y - camera_y
+        
+        enemy.updateAi(enemy_obstacles, knight)
+
+        enemy.draw_at_position(screen, (enemy_screen_x, enemy_screen_y))
+
     knight.draw_at_position(screen, (player_screen_x, player_screen_y))
 
     #event handler
     for event in pygame.event.get():
+        
         if event.type == QUIT:
             run = False
         
@@ -146,8 +172,9 @@ while run:
             tile_y = world_y // constants.TILE_SIZE
             
             #check if player is in range of this tile
-            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 0):
-                world.remove_block_at(tile_x, tile_y)
+            knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
+            if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
+                world.remove_block_at(tile_x, tile_y, knight)
             
             
         
@@ -167,8 +194,9 @@ while run:
             tile_rect = knight.rect.inflate(80,80)
 
             #check if player is in range of this tile
-            if knight.is_tile_in_range(tile_x, tile_y, obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
-                world.add_block_at(tile_x, tile_y)
+            knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
+            if knight.is_tile_in_range(tile_x, tile_y, knight_obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
+                world.add_block_at(tile_x, tile_y, knight)
 
         #key pressed
         if event.type == KEYDOWN:
@@ -185,8 +213,6 @@ while run:
                 moving_left = False
             if event.key == K_d:
                 moving_right = False
-
-        obstacles = world.get_obstacles_in_area(camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
 
     pygame.display.update()
     clock.tick(constants.FPS)
