@@ -18,6 +18,16 @@ def scale_img(image, scale):
     h = image.get_height()
     return pygame.transform.scale(image, ((w * scale), (h * scale)))
 
+def map_structure(structure):
+    structure_data = []
+    with open(structure + ".txt", "r") as structure_raw:
+        for line in structure_raw.readlines():
+            row = []
+            for element in line.split(","):
+                row.append(int(element.strip()))
+            structure_data.append(row)
+    return structure_data
+
 #load player images
 #player image array structure#
 #[[idle], [hit], [run], [roll]]
@@ -84,7 +94,14 @@ for wood_type in wood_sprite_types:
             continue
     wood_sprites.append(frames)
 
-world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, seed=1234)  #use fixed seed for consistent world
+
+structures = ["house1", "house2"]
+structures_map = {}
+for structure in structures:
+    structures_map[structure] = map_structure(structure)
+
+
+world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, structures_map, seed=1234)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
 surface_y = world.get_surface_y_at_pixel(400)

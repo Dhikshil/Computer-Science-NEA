@@ -55,6 +55,7 @@ class Enemy(Character):
                 self.jump()
         else:
             self.action = 0  # idle
+
         
         self.move(obstacles)
         self.update()

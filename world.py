@@ -5,7 +5,7 @@ from noise import pnoise2
 import random
 
 class World():
-    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, seed=None):
+    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, structures_map, seed=None):
         self.ground_sprites = ground_sprites
         self.wood_sprites = wood_sprites
         self.vegetation_sprites = vegetation_sprites
@@ -34,6 +34,7 @@ class World():
             "tree_tile" : 3,
             "bush_tile" : 4,
             "wood_tile" : 5, 
+            "friendly" : 6,
         }
 
         # terrain type generation thresholds
@@ -44,6 +45,8 @@ class World():
 
         self.enemies_spawned = []
         self.enemy_animations = enemy_animations
+
+        self.structures_map = structures_map
     
     # create a gradient image of a perlin noise map given (x, y)
     def multi_octave_noise(self, x, y, octaves=4, persistence=0.2, lacunarity=2.5):
@@ -160,6 +163,8 @@ class World():
         if key not in self.world:
             self.world[key] = self.generate_chunk(chunk_x, chunk_y)
             self.spawn_enemies(chunk_x)
+            if self.chunk_contains_surface(chunk_x, chunk_y):
+                self.try_spawn_house_on_surface(chunk_x, chunk_y, spawn_chance=0.35)
 
     def get_tile_at(self, tile_x, tile_y):
         chunk_x = tile_x // self.chunk_size
@@ -205,6 +210,120 @@ class World():
                 return tile["world_y"]
 
         return self.base_height  # fallback so it never returns None
+    
+    #spawn house function, brings together all the other functions
+    def try_spawn_house_on_surface(self, chunk_x, chunk_y, spawn_chance=0.3):
+        house_width = len(self.structures_map["house1"][0])
+        surface_runs = self.find_surface_runs_in_chunk(chunk_x, chunk_y, house_width)
+
+        #if there is no available section of tiles, do not spawn structure
+        if not surface_runs:
+            return
+
+        # deterministic randomness so structures always spawn in same place
+        random.seed(self.seed + chunk_x * 92821 + chunk_y * 1237)
+        if random.random() > spawn_chance:
+            return
+
+        #choose a random set of tiles that works
+        surface_y, x_run = random.choice(surface_runs)
+        #starting x coordinate, chooses from the group of available tiles  
+        start_local_x = random.choice(x_run[:len(x_run) - house_width + 1])
+
+        world_x = chunk_x * self.chunk_size + start_local_x
+        world_y = chunk_y * self.chunk_size + surface_y
+        #anchor is the first house and it anchord the location of the second house 
+        anchor = self.place_house(base_x = world_x, house_map = self.structures_map["house1"])
+
+        # chance to spawn attached house
+        if random.random() < 0.7:
+            side = random.choice(["left", "right"])
+            self.place_house(anchor = anchor, house_map = self.structures_map["house2"], side = side)
+    
+    #finds and returns groups of tiles that meet the minimum required length
+    def find_surface_runs_in_chunk(self, chunk_x, chunk_y, min_length):
+        runs = []
+        chunk = self.world[(chunk_x, chunk_y)]
+        tiles_by_y = {}
+
+        # group surface tiles by Y level
+        for (lx, ly), tile in chunk.items():
+            if tile["tile_type"] == self.tile_types["surface_tile"]:
+                tiles_by_y.setdefault(ly, []).append(lx)
+
+        # find contiguous X runs on each Y row
+        for surface_y, x_list in tiles_by_y.items():
+            x_list.sort()
+            run = [x_list[0]]
+            for x in x_list[1:]:
+                if x == run[-1] + 1:
+                    run.append(x)
+                else:
+                    if len(run) >= min_length:
+                        runs.append((surface_y, run.copy()))
+                    run = [x]
+            if len(run) >= min_length:
+                runs.append((surface_y, run.copy()))
+
+        return runs
+            
+    def place_house(self, house_map, anchor=None, base_x = None, side="right"):
+        house_height = len(house_map)
+        house_width = len(house_map[0])
+
+        if anchor is not None:
+            if side == "right":
+                base_x = anchor["x"] + anchor["width"]
+            else:
+                base_x = anchor["x"] - house_width
+
+            surface_y = anchor["y"]
+        else: 
+            surface_y = self.get_surface_y_at_pixel(base_x*constants.TILE_SIZE)
+
+        for row_idx, row in enumerate(house_map):
+            for col_idx, tile in enumerate(row):
+
+                tile_x = base_x + col_idx
+                tile_y = surface_y - (house_height - 1 - row_idx)
+
+                chunk_x = tile_x // self.chunk_size
+                chunk_y = tile_y // self.chunk_size
+                local_x = tile_x % self.chunk_size
+                local_y = tile_y % self.chunk_size
+
+                if (chunk_x, chunk_y) not in self.world:
+                    self.load_chunk(chunk_x, chunk_y)
+
+                if tile == -1:
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
+                        "tile_type": self.tile_types["air_tile"],
+                        "solid": False,
+                        "image_index": 0
+                    })
+                else:
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
+                        "tile_type": tile,
+                        "solid": True,
+                        "image_index": 0
+                    })
+        # return anchor info for attached buildings
+        if anchor is None:
+            return {
+                "x": base_x,
+                "y": surface_y,
+                "width": house_width,
+                "height": house_height
+            }
+
+
+    def chunk_contains_surface(self, chunk_x, chunk_y):
+        chunk = self.world[(chunk_x, chunk_y)]
+        for tile in chunk.values():
+            if tile["tile_type"] == self.tile_types["surface_tile"]:
+                return True
+        return False
+
 
     def get_obstacles_in_area(self, character, tiles_around_character = 3):
         obstacles = []

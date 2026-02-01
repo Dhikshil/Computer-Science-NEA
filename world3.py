@@ -127,7 +127,7 @@ class World():
         player_chunk_x = player_x // (self.chunk_size * constants.TILE_SIZE)
         player_chunk_y = player_y // (self.chunk_size * constants.TILE_SIZE)
         
-        if player_x < 0 and player_x % (self.chunk_size * constants.TILE_SIZE) != 0:
+        if player_x < 0 and player_x % (self.chunk_size * constants.TILE_SIZE) != 0:    
             player_chunk_x -= 1
         if player_y < 0 and player_y % (self.chunk_size * constants.TILE_SIZE) != 0:
             player_chunk_y -= 1
