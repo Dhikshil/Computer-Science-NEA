@@ -3,7 +3,7 @@ import constants
 import math
 from character import Character
 
-class Enemy(Character):
+class Friendly(Character):
     def __init__(self, animations, spawn_pos):#
         # hitbox and position
         hitbox_height = constants.TILE_SIZE // constants.TILE_SCALE
@@ -13,7 +13,8 @@ class Enemy(Character):
         
         # image control
         self.animations = animations
-        self.action = 0  # 0 idle, 1 hit, 2 run
+        self.action = 0  # 0 idle
+        self.in_range = False
         self.frame_index = 0
         self.image = self.animations[self.action][self.frame_index]
         self.image_rect = self.image.get_rect(midbottom = self.rect.midbottom)
@@ -23,39 +24,27 @@ class Enemy(Character):
         self.update_time = pygame.time.get_ticks()
 
         # AI tuning variables
-        self.detection_range = 300
-        self.attack_range = 40
-        self.vel_x = 0
-        self.vel_y = 0
-        self.jumping = False
-        self.ai_controlled = True
+        self.detection_range = 40
 
-    def update_action(self):
-        # update action
-        if self.vel_x != 0:
-            self.action = 2  # running
-        else:
-            self.action = 0  # idle
+        self.dialogue = "Hello, Traveller"
 
-    def updateAi(self, obstacles, player):
-        self.vel_x = 0
+    def updateAi(self, player, surface):
         dx = self.rect.centerx - player.rect.centerx
         dy = self.rect.centery - player.rect.centery
         distance = math.hypot(dx, dy)
 
         if distance <= self.detection_range:
-            self.action = 2  # run
+            self.draw_dialogue_box(surface, self.dialogue)
 
-            if dx > 5:
-                self.vel_x = -constants.PLAYER_SPEED * 0.6
-            elif dx < -5:
-                self.vel_x = constants.PLAYER_SPEED * 0.6
-
-            if constants.TILE_SIZE <= dy <= constants.TILE_SIZE * 2:
-                self.jump()
-        else:
-            self.action = 0  # idle
-
-        
-        self.move(obstacles)
         self.update()
+
+    def draw_dialogue_box(self, surface, dialogue):
+        box_rect = pygame.Rect(50, constants.WINDOW_SIZE[1] - 150,
+                           constants.WINDOW_SIZE[0] - 100, 100)
+
+        pygame.draw.rect(surface, (0, 0, 0), box_rect)
+        pygame.draw.rect(surface, (255, 255, 255), box_rect, 3)
+
+        font = pygame.font.SysFont("arial", 22)
+        rendered = font.render(dialogue, True, (255, 255, 255))
+        surface.blit(rendered, (box_rect.x + 20, box_rect.y + 20))

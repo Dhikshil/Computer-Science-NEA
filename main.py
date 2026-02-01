@@ -55,6 +55,18 @@ for animation_type in enemy_animation_types:
             continue
     enemy_animations.append(frames)
 
+friendly_animations = []
+friendly_animation_types = ["idle"]
+for animation_type in friendly_animation_types:
+    frames = []
+    for x in range(1, 9):
+        try: 
+            image = image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/friendly/{animation_type}/friendly_{x}.png").convert_alpha()
+            frames.append(scale_img(image, constants.PLAYER_SCALE))
+        except FileNotFoundError:
+            continue
+    friendly_animations.append(frames)
+
 #load ground tilesa
 #ground tiles array structure
 #[[green_surface], [green_dirt], [stones]]
@@ -101,7 +113,7 @@ for structure in structures:
     structures_map[structure] = map_structure(structure)
 
 
-world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, structures_map, seed=1234)  #use fixed seed for consistent world
+world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=1234)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
 surface_y = world.get_surface_y_at_pixel(400)
@@ -167,6 +179,14 @@ while run:
         enemy.updateAi(enemy_obstacles, knight)
 
         enemy.draw_at_position(screen, (enemy_screen_x, enemy_screen_y))
+
+    for friendly in world.friendlies_spawned:
+        friendly_screen_x = friendly.rect.x - camera_x 
+        friendly_screen_y = friendly.rect.y - camera_y
+        
+        friendly.updateAi(knight, screen)
+
+        friendly.draw_at_position(screen, (friendly_screen_x, friendly_screen_y))
 
     knight.draw_at_position(screen, (player_screen_x, player_screen_y))
 

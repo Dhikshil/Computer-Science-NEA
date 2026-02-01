@@ -1,11 +1,12 @@
 import pygame
 import constants
 from enemy import Enemy
+from freindly import Friendly
 from noise import pnoise2
 import random
 
 class World():
-    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, structures_map, seed=None):
+    def __init__(self, ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=None):
         self.ground_sprites = ground_sprites
         self.wood_sprites = wood_sprites
         self.vegetation_sprites = vegetation_sprites
@@ -46,6 +47,8 @@ class World():
         self.enemies_spawned = []
         self.enemy_animations = enemy_animations
 
+        self.friendlies_spawned = []
+        self.friendly_animations = friendly_animations
         self.structures_map = structures_map
     
     # create a gradient image of a perlin noise map given (x, y)
@@ -301,6 +304,16 @@ class World():
                         "solid": False,
                         "image_index": 0
                     })
+
+                elif tile == 6:
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
+                        "tile_type": self.tile_types["air_tile"],
+                        "solid": False,
+                        "image_index": 0
+                    })
+                    friendly = Friendly(self.friendly_animations, ((chunk_x * self.chunk_size + local_x + 1) * constants.TILE_SIZE, (chunk_y * self.chunk_size + local_y + 1) * constants.TILE_SIZE))
+                    self.friendlies_spawned.append(friendly)
+
                 else:
                     self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
                         "tile_type": tile,
