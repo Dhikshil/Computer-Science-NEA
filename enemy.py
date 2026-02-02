@@ -30,6 +30,9 @@ class Enemy(Character):
         self.jumping = False
         self.ai_controlled = True
 
+        self.damage = 10
+        self.health = 40
+
     def update_action(self):
         # update action
         if self.vel_x != 0:

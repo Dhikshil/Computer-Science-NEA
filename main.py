@@ -113,7 +113,7 @@ for structure in structures:
     structures_map[structure] = map_structure(structure)
 
 
-world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=1234)  #use fixed seed for consistent world
+world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=68)  #use fixed seed for consistent world
 knight = Character(knight_animations)
 
 surface_y = world.get_surface_y_at_pixel(400)
@@ -195,8 +195,8 @@ while run:
         
         if event.type == QUIT:
             run = False
-        
-        if event.type == MOUSEBUTTONDOWN and event.button == 1:  # Left mouse button
+
+        if event.type == MOUSEBUTTONDOWN:
             #get mouse position
             mouse_x, mouse_y = pygame.mouse.get_pos()
             
@@ -210,30 +210,17 @@ while run:
             
             #check if player is in range of this tile
             knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
-            if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
-                world.remove_block_at(tile_x, tile_y, knight)
-            
-            
-        
-        if event.type == MOUSEBUTTONDOWN and event.button == 3:  #right mouse button
-            #get mouse position
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            
-            #convert screen coordinates to world coordinates using camera offset
-            world_x = mouse_x + camera_x
-            world_y = mouse_y + camera_y
-            
-            #convert world coordinates to tile coordinates
-            tile_x = world_x // constants.TILE_SIZE
-            tile_y = world_y // constants.TILE_SIZE
 
-            #inflating player's hitbox to check for mouse collision with the tile the player is in
-            tile_rect = knight.rect.inflate(80,80)
+            if event.button == 1:
+                if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
+                    world.remove_block_at(tile_x, tile_y, knight)
+            
+            if event.button == 3:
+                #inflating player's hitbox to check for mouse collision with the tile the player is in
+                tile_rect = knight.rect.inflate(80,80)
 
-            #check if player is in range of this tile
-            knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
-            if knight.is_tile_in_range(tile_x, tile_y, knight_obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
-                world.add_block_at(tile_x, tile_y, knight)
+                if knight.is_tile_in_range(tile_x, tile_y, knight_obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
+                    world.add_block_at(tile_x, tile_y, knight)
 
         #key pressed
         if event.type == KEYDOWN:
