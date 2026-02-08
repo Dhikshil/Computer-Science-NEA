@@ -2,6 +2,9 @@ import pygame
 import constants
 import math
 from character import Character
+from combat import CombatSystem
+
+combat = CombatSystem()
 
 class Enemy(Character):
     def __init__(self, animations, spawn_pos):#
@@ -31,6 +34,8 @@ class Enemy(Character):
         self.ai_controlled = True
 
         self.damage = 10
+        self.attack_cooldown = 1200
+        self.attack_cooldown_ticks = pygame.time.get_ticks()
         self.health = 40
 
     def update_action(self):
@@ -46,7 +51,7 @@ class Enemy(Character):
         dy = self.rect.centery - player.rect.centery
         distance = math.hypot(dx, dy)
 
-        if distance <= self.detection_range:
+        if distance <= self.detection_range and distance > self.attack_range:
             self.action = 2  # run
 
             if dx > 5:
@@ -55,7 +60,12 @@ class Enemy(Character):
                 self.vel_x = constants.PLAYER_SPEED * 0.6
 
             if constants.TILE_SIZE <= dy <= constants.TILE_SIZE * 2:
-                self.jump()
+                self.jump() 
+
+        elif distance <= self.attack_range:
+            if combat.can_attack(self, self.attack_cooldown):
+                combat.apply_damage(self, player)
+
         else:
             self.action = 0  # idle
         

@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 import constants
 from character import Character
-from enemy import Enemy
+from combat import CombatSystem
 from world import World
 
 pygame.init()
@@ -115,6 +115,7 @@ for structure in structures:
 
 world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=68)  #use fixed seed for consistent world
 knight = Character(knight_animations)
+combat = CombatSystem()
 
 surface_y = world.get_surface_y_at_pixel(400)
 
@@ -146,6 +147,7 @@ while run:
     camera_y += (target_camera_y - camera_y) * camera_speed
 
     #draw world
+    world.update_chunks_around_player(knight.rect.centerx, knight.rect.centery)
     world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
 
     #get obstacles for collision detection
@@ -212,6 +214,16 @@ while run:
             knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
 
             if event.button == 1:
+                for enemy in world.enemies_spawned:
+                    if combat.in_attack_range(knight, enemy, constants.PLAYER_HIT_RANGE):
+                        if combat.can_attack(knight, constants.PLAYER_HIT_RANGE):
+                            damage = combat.apply_damage(knight, enemy)
+                            knight.action = 1  # hit animation
+                            print("Enemy hit for", damage)
+
+                            if enemy.health <= 0:
+                                world.enemies_spawned.remove(enemy)
+
                 if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
                     world.remove_block_at(tile_x, tile_y, knight)
             

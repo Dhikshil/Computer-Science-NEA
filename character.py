@@ -1,6 +1,7 @@
 import pygame
 import constants
 import math
+import random
 
 class Character(pygame.sprite.Sprite): 
     def __init__(self, animations):
@@ -27,6 +28,10 @@ class Character(pygame.sprite.Sprite):
         self.hotbar_pointer = 0
 
         self.ai_controlled = False
+
+        self.health = 100
+        self.damage = 20
+        self.cooldown = 200
 
     def update_action(self):
         # update action
@@ -110,6 +115,14 @@ class Character(pygame.sprite.Sprite):
 
         # Calculate distance between player center and tile center
         return math.sqrt((self.rect.centerx - tile_world_x) ** 2 + (self.rect.centery - tile_world_y) ** 2) <= constants.PLAYER_HIT_RANGE and collisions <= 1
+    
+    def damage_calculator(self, weapon):
+        damage = self.damage * random.uniform(0.9,1.1)
+        if weapon == None:
+            return damage
+        else:
+            return (damage + weapon.damage) * random.uniform(1.0, 1.2)
+
 
     def draw_at_position(self, surface, position):
         # Calculate where to draw the image based on the collision rect position
