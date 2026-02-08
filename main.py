@@ -9,6 +9,9 @@ from save_system import SaveSystem
 from enemy import Enemy
 from freindly import Friendly
 from damage_display import DamageNumberManager
+from items import get_item_info
+from inventory_ui import InventoryUI
+
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -131,11 +134,16 @@ moving_right = False
 current_seed = None
 game_start_time = 0
 total_time_played = 0
+# Initialize inventory UI after other initializations
+inventory_ui = None
+show_full_inventory = False
+
 
 def start_new_game(seed):
     global world, knight, combat, camera_x, camera_y, moving_left, moving_right
     global current_seed, game_start_time, total_time_played, damage_number_manager
-    
+    global inventory_ui, show_full_inventory
+
     current_seed = seed
     game_start_time = pygame.time.get_ticks()
     total_time_played = 0
@@ -158,9 +166,13 @@ def start_new_game(seed):
     moving_left = False
     moving_right = False
 
+    inventory_ui = InventoryUI()
+    show_full_inventory = False
+
 def load_saved_game(seed):
     global world, knight, combat, camera_x, camera_y, moving_left, moving_right
     global current_seed, game_start_time, total_time_played, damage_number_manager
+    global inventory_ui, show_full_inventory  # Add this line
     
     save_data = save_system.load_game(seed)
     if not save_data:
@@ -183,6 +195,9 @@ def load_saved_game(seed):
     knight.health = save_data['player_health']
     knight.flip = save_data['player_flip']
     
+    if 'player_inventory' in save_data:
+        knight.load_inventory_data(save_data['player_inventory'])
+    
     # Recreate enemies from saved data
     world.enemies_spawned = []
     for enemy_data in save_data['enemies']:
@@ -204,6 +219,9 @@ def load_saved_game(seed):
     
     combat = CombatSystem()
     damage_number_manager = DamageNumberManager()
+    
+    inventory_ui = InventoryUI()
+    show_full_inventory = False
     
     # Set camera to player position
     camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
@@ -340,6 +358,8 @@ while run:
             
             friendly.updateAi(knight, screen)
             friendly.draw_at_position(screen, (friendly_screen_x, friendly_screen_y))
+
+        inventory_ui.draw_hotbar(screen, knight, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
         
         knight.draw_at_position(screen, (player_screen_x, player_screen_y))
         
@@ -358,6 +378,10 @@ while run:
         health_text = time_font.render(f"Health: {int(knight.health)}", True, (255, 50, 50))
         screen.blit(health_text, (10, 10))
         
+        if show_full_inventory:
+            inventory_ui.draw_full_inventory(screen, knight, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
+
+
         # Event handler
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -422,13 +446,35 @@ while run:
                     game_state = "main_menu"
                 if event.key == K_F5:
                     save_current_game()
+                if event.key == K_TAB:
+                    show_full_inventory = not show_full_inventory
+                
+                # Number keys 1-9 to select hotbar slots
+                if event.key in (K_1, K_2, K_3, K_4, K_5, K_6, K_7, K_8, K_9):
+                    knight.selected_hotbar_slot = event.key - K_1
+                
+                # E key to use selected item
+                if event.key == K_e:
+                    selected_item = knight.get_selected_item()
+                    if selected_item:
+                        knight.use_item(selected_item)
+                
+                # Q key to drop selected item (optional)
+                if event.key == K_q:
+                    selected_item = knight.get_selected_item()
+                    if selected_item:
+                        knight.remove_item(selected_item, 1)
+                        print(f"Dropped 1x {selected_item}")
             
             if event.type == KEYUP:
                 if event.key == K_a:
                     moving_left = False
                 if event.key == K_d:
                     moving_right = False
-    
+            
+            if event.type == pygame.MOUSEWHEEL:
+                knight.cycle_hotbar(-event.y)  # Scroll up = -1, scroll down = 1
+
     pygame.display.update()
     clock.tick(constants.FPS)
 

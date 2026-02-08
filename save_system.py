@@ -10,18 +10,18 @@ class SaveSystem:
             os.makedirs(self.save_directory)
     
     def save_game(self, world, enemies, friendlies, knight, time_played, seed):
-        """Save the game state to a file"""
         save_data = {
-            'world': world.world,  # The world dictionary
+            'world': world.world,
             'seed': seed,
             'time_played': time_played,
             'enemies': self.serialize_entities(enemies),
             'friendlies': self.serialize_entities(friendlies),
             'player_pos': (knight.rect.x, knight.rect.y),
             'player_health': knight.health,
-            'player_flip': knight.flip
+            'player_flip': knight.flip,
+            'player_inventory': knight.get_inventory_data()
         }
-        
+
         filename = os.path.join(self.save_directory, f"world_{seed}.pkl")
         
         try:
@@ -34,7 +34,6 @@ class SaveSystem:
             return False
     
     def load_game(self, seed):
-        """Load a saved game state"""
         filename = os.path.join(self.save_directory, f"world_{seed}.pkl")
         
         if not os.path.exists(filename):
@@ -50,12 +49,10 @@ class SaveSystem:
             return None
     
     def save_exists(self, seed):
-        """Check if a save file exists for this seed"""
         filename = os.path.join(self.save_directory, f"world_{seed}.pkl")
         return os.path.exists(filename)
     
     def delete_save(self, seed):
-        """Delete a save file"""
         filename = os.path.join(self.save_directory, f"world_{seed}.pkl")
         if os.path.exists(filename):
             try:
@@ -68,7 +65,6 @@ class SaveSystem:
         return False
     
     def serialize_entities(self, entities):
-        """Convert entity objects to serializable data"""
         serialized = []
         for entity in entities:
             entity_data = {
@@ -81,7 +77,6 @@ class SaveSystem:
         return serialized
     
     def format_time(self, milliseconds):
-        """Convert milliseconds to readable time format"""
         seconds = milliseconds // 1000
         minutes = seconds // 60
         hours = minutes // 60
@@ -95,3 +90,5 @@ class SaveSystem:
             return f"{minutes}m {remaining_seconds}s"
         else:
             return f"{seconds}s"
+        
+        # In the save_game method, add inventory data:

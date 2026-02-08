@@ -357,31 +357,86 @@ class World():
                         pygame.Rect(tile["world_x"] * constants.TILE_SIZE, tile["world_y"] * constants.TILE_SIZE, constants.TILE_SIZE, constants.TILE_SIZE)
                     )
         return obstacles
-    
+
     def remove_block_at(self, tile_x, tile_y, player):
+        from items import get_tile_drops
+        
         chunk_x = tile_x // self.chunk_size
         chunk_y = tile_y // self.chunk_size
 
         local_x = tile_x - chunk_x * self.chunk_size
         local_y = tile_y - chunk_y * self.chunk_size
 
-        if self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] != self.tile_types["air_tile"]:
+        tile = self.world[(chunk_x, chunk_y)][(local_x, local_y)]
+        
+        if tile["tile_type"] != self.tile_types["air_tile"]:
+            # Get drops for this tile type
+            drops = get_tile_drops(tile["tile_type"])
+            
+            # Add drops to player inventory
+            for item_id, quantity in drops:
+                player.add_item(item_id, quantity)
+                print(f"Collected {quantity}x {item_id}")
+            
+            # Remove the block
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] = self.tile_types["air_tile"]
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["solid"] = False
             self.world[(chunk_x, chunk_y)][(local_x, local_y)]["image_index"] = 0
             
+            return True
+        return False
                  
 
     def add_block_at(self, tile_x, tile_y, player):
+        
         chunk_x = tile_x // self.chunk_size
         chunk_y = tile_y // self.chunk_size
 
         local_x = tile_x - chunk_x * self.chunk_size
         local_y = tile_y - chunk_y * self.chunk_size
 
+        # Check if the tile is air (can place block)
         if self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] == self.tile_types["air_tile"]:
-            self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] = self.tile_types["wood_tile"]
-            self.world[(chunk_x, chunk_y)][(local_x, local_y)]["solid"] = True
+            # Get the currently selected item from player's hotbar
+            selected_item = player.get_selected_item()
+            
+            if not selected_item:
+                print("No item selected to place!")
+                return False
+            
+            # Check if player has the item
+            if not player.has_item(selected_item, 1):
+                print(f"You don't have any {selected_item}!")
+                return False
+            
+            # Map item types to tile types
+            item_to_tile = {
+                "wood": self.tile_types["wood_tile"],
+                "stone": self.tile_types["stone_tile"],
+                "dirt": self.tile_types["ground_tile"],
+            }
+            
+            # Check if the selected item can be placed as a block
+            if selected_item not in item_to_tile:
+                print(f"{selected_item} cannot be placed as a block!")
+                return False
+            
+            # Get the tile type for this item
+            tile_type = item_to_tile[selected_item]
+            
+            # Remove one item from inventory
+            if player.remove_item(selected_item, 1):
+                # Place the block
+                self.world[(chunk_x, chunk_y)][(local_x, local_y)]["tile_type"] = tile_type
+                self.world[(chunk_x, chunk_y)][(local_x, local_y)]["solid"] = True
+                self.world[(chunk_x, chunk_y)][(local_x, local_y)]["image_index"] = 0
+                print(f"Placed {selected_item} block")
+                return True
+            else:
+                print(f"Failed to remove {selected_item} from inventory")
+                return False
+        
+        return False
 
 
     def spawn_enemies(self, chunk_x):

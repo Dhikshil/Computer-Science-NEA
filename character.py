@@ -2,6 +2,7 @@ import pygame
 import constants
 import math
 import random
+from items import get_item_info, ITEMS
 
 class Character(pygame.sprite.Sprite): 
     def __init__(self, animations):
@@ -24,18 +25,116 @@ class Character(pygame.sprite.Sprite):
         self.vel_y = 0
         self.jumping = False
 
-        self.hotbar = []
-        self.hotbar_pointer = 0
-
         self.ai_controlled = False
 
         self.health = 100
+        self.max_health = 100
         self.damage = 20
         self.cooldown = 200
         
         # Hit animation control
         self.is_hit = False
         self.hit_animation_finished = False
+        
+        # Inventory system
+        self.inventory = {}  # {item_id: quantity}
+        self.hotbar_slots = 9  # Number of hotbar slots
+        self.hotbar = [None] * self.hotbar_slots  # [item_id or None, ...]
+        self.selected_hotbar_slot = 0  # Currently selected slot (0-8)
+        
+    def add_item(self, item_id, quantity=1):
+        item_info = get_item_info(item_id)
+        if not item_info:
+            print(f"Unknown item: {item_id}")
+            return False
+        
+        max_stack = item_info["max_stack"]
+        
+        # Add to existing stack or create new entry
+        if item_id in self.inventory:
+            self.inventory[item_id] += quantity
+        else:
+            self.inventory[item_id] = quantity
+            
+        # Auto-add to hotbar if there's space and item not already in hotbar
+        if item_id not in self.hotbar:
+            for i in range(self.hotbar_slots):
+                if self.hotbar[i] is None:
+                    self.hotbar[i] = item_id
+                    break
+        
+        return True
+    
+    def remove_item(self, item_id, quantity=1):
+        if item_id not in self.inventory:
+            return False
+        
+        if self.inventory[item_id] < quantity:
+            return False
+        
+        self.inventory[item_id] -= quantity
+        
+        # Remove from inventory if quantity reaches 0
+        if self.inventory[item_id] <= 0:
+            del self.inventory[item_id]
+            
+            # Remove from hotbar if item is gone
+            for i in range(self.hotbar_slots):
+                if self.hotbar[i] == item_id:
+                    self.hotbar[i] = None
+        
+        return True
+    
+    def get_item_count(self, item_id):
+        return self.inventory.get(item_id, 0)
+    
+    def has_item(self, item_id, quantity=1):
+        return self.get_item_count(item_id) >= quantity
+    
+    def use_item(self, item_id):
+        if item_id not in self.inventory:
+            return False
+        
+        item_info = get_item_info(item_id)
+        if not item_info:
+            return False
+        
+        # Handle consumables
+        if item_info["type"] == "consumable":
+            if "heal_amount" in item_info:
+                self.health = min(self.max_health, self.health + item_info["heal_amount"])
+                self.remove_item(item_id, 1)
+                print(f"Used {item_info['name']}, healed {item_info['heal_amount']} HP")
+                return True
+        
+        # Handle weapons (for future implementation)
+        elif item_info["type"] == "weapon":
+            # Could equip weapon here
+            print(f"Equipped {item_info['name']}")
+            return True
+        
+        return False
+    
+    def get_selected_item(self):
+        selected_item_id = self.hotbar[self.selected_hotbar_slot]
+        if selected_item_id and selected_item_id in self.inventory:
+            return selected_item_id
+        return None
+    
+    def cycle_hotbar(self, direction):
+        self.selected_hotbar_slot = (self.selected_hotbar_slot + direction) % self.hotbar_slots
+    
+    def get_inventory_data(self):
+        return {
+            "inventory": self.inventory.copy(),
+            "hotbar": self.hotbar.copy(),
+            "selected_slot": self.selected_hotbar_slot
+        }
+    
+    def load_inventory_data(self, inventory_data):
+        self.inventory = inventory_data.get("inventory", {})
+        self.hotbar = inventory_data.get("hotbar", [None] * self.hotbar_slots)
+        self.selected_hotbar_slot = inventory_data.get("selected_slot", 0)
 
     def update_action(self):
         # Don't change action if currently playing hit animation
@@ -49,7 +148,6 @@ class Character(pygame.sprite.Sprite):
             self.action = 0  # idle
 
     def take_damage(self, damage):
-        """Called when character takes damage - triggers hit animation"""
         self.health -= damage
         self.is_hit = True
         self.hit_animation_finished = False
@@ -148,7 +246,6 @@ class Character(pygame.sprite.Sprite):
             return damage
         else:
             return (damage + weapon.damage) * random.uniform(1.0, 1.2)
-
 
     def draw_at_position(self, surface, position):
         # Calculate where to draw the image based on the collision rect position
