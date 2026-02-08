@@ -1,6 +1,7 @@
 import pygame
 import constants
 import math
+import random
 from character import Character
 from combat import CombatSystem
 
@@ -41,6 +42,8 @@ class Enemy(Character):
         # Hit animation control
         self.is_hit = False
         self.hit_animation_finished = False
+        self.coin_drop_min = 3
+        self.coin_drop_max = 8
 
     def update_action(self):
         # Don't change action if currently playing hit animation
@@ -52,6 +55,9 @@ class Enemy(Character):
             self.action = 2  # running
         else:
             self.action = 0  # idle
+
+    def get_coin_drops(self):
+        return random.randint(self.coin_drop_min, self.coin_drop_max)
 
     def updateAi(self, obstacles, player, damage_number_manager=None):
         # Don't move or attack while playing hit animation

@@ -208,10 +208,12 @@ def load_saved_game(seed):
         enemy.action = enemy_data['action']
         world.enemies_spawned.append(enemy)
     
+    # In load_saved_game function, update the friendlies section:
     # Recreate friendlies from saved data
     world.friendlies_spawned = []
     for friendly_data in save_data['friendlies']:
-        friendly = Friendly(friendly_animations, spawn_pos=(0, 0))
+        shop_type = friendly_data.get('shop_type', 'general_store')
+        friendly = Friendly(friendly_animations, spawn_pos=(0, 0), shop_type=shop_type)
         friendly.rect.x, friendly.rect.y = friendly_data['pos']
         friendly.flip = friendly_data['flip']
         friendly.action = friendly_data['action']
@@ -351,12 +353,11 @@ while run:
             enemy.updateAi(enemy_obstacles, knight, damage_number_manager)
             enemy.draw_at_position(screen, (enemy_screen_x, enemy_screen_y))
         
-        # Update and draw friendlies
         for friendly in world.friendlies_spawned:
             friendly_screen_x = friendly.rect.x - camera_x 
             friendly_screen_y = friendly.rect.y - camera_y
             
-            friendly.updateAi(knight, screen)
+            friendly.updateAi(knight, screen)  # Removed shop_ui parameter
             friendly.draw_at_position(screen, (friendly_screen_x, friendly_screen_y))
 
         inventory_ui.draw_hotbar(screen, knight, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
@@ -417,8 +418,12 @@ while run:
                                 print(f"Enemy hit for {damage} damage! Enemy health: {enemy.health}")
                                 
                                 if enemy.health <= 0:
+                                    # Drop coins when enemy dies
+                                    coins_dropped = enemy.get_coin_drops()
+                                    knight.add_item("coin", coins_dropped)
+                                    print(f"Enemy defeated! Dropped {coins_dropped} coins!")
+                                    
                                     world.enemies_spawned.remove(enemy)
-                                    print("Enemy defeated!")
                                 
                                 attacked_any_enemy = True
                                 break
@@ -465,6 +470,33 @@ while run:
                     if selected_item:
                         knight.remove_item(selected_item, 1)
                         print(f"Dropped 1x {selected_item}")
+
+                            # F key to interact with friendly NPCs (toggle shop)
+                if event.key == K_f:
+                    for friendly in world.friendlies_spawned:
+                        if friendly.in_range:
+                            friendly.toggle_shop()
+                            break
+                
+                # UP/DOWN arrows for shop navigation
+                if event.key == K_UP:
+                    for friendly in world.friendlies_spawned:
+                        if friendly.in_range and friendly.shop_open:
+                            friendly.navigate_shop(-1)
+                            break
+                
+                if event.key == K_DOWN:
+                    for friendly in world.friendlies_spawned:
+                        if friendly.in_range and friendly.shop_open:
+                            friendly.navigate_shop(1)
+                            break
+                
+                # ENTER to buy item
+                if event.key == K_RETURN:
+                    for friendly in world.friendlies_spawned:
+                        if friendly.in_range and friendly.shop_open:
+                            friendly.buy_selected_item(knight)
+                            break
             
             if event.type == KEYUP:
                 if event.key == K_a:

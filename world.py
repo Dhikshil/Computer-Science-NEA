@@ -305,13 +305,24 @@ class World():
                         "image_index": 0
                     })
 
+                # In the place_house method, where you create friendlies, modify this section:
+
                 elif tile == 6:
                     self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
                         "tile_type": self.tile_types["air_tile"],
                         "solid": False,
                         "image_index": 0
                     })
-                    friendly = Friendly(self.friendly_animations, ((chunk_x * self.chunk_size + local_x + 1) * constants.TILE_SIZE, (chunk_y * self.chunk_size + local_y + 1) * constants.TILE_SIZE))
+                    
+                    shop_types = ["general_store", "weapon_shop", "mixed_shop"]
+                    shop_type = random.choice(shop_types)
+                    
+                    friendly = Friendly(
+                        self.friendly_animations, 
+                        ((chunk_x * self.chunk_size + local_x + 1) * constants.TILE_SIZE, 
+                        (chunk_y * self.chunk_size + local_y + 1) * constants.TILE_SIZE),
+                        shop_type=shop_type
+                    )
                     self.friendlies_spawned.append(friendly)
 
                 else:
@@ -453,7 +464,6 @@ class World():
             p *= 0.6
 
     def draw(self, surface, camera_x, camera_y, screen_width, screen_height):
-
         start_x = int(camera_x // constants.TILE_SIZE) - 1
         end_x = int((camera_x + screen_width) // constants.TILE_SIZE) + 2
         start_y = int(camera_y // constants.TILE_SIZE) - 1

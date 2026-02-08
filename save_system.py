@@ -73,6 +73,10 @@ class SaveSystem:
                 'flip': entity.flip,
                 'action': entity.action
             }
+            # Save shop type for friendlies
+            if hasattr(entity, 'shop_type'):
+                entity_data['shop_type'] = entity.shop_type
+            
             serialized.append(entity_data)
         return serialized
     
