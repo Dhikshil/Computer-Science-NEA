@@ -4,15 +4,22 @@ import constants
 from character import Character
 from combat import CombatSystem
 from world import World
+from menus import MainMenu, WorldSelectMenu
+from save_system import SaveSystem
+from enemy import Enemy
+from freindly import Friendly
+from damage_display import DamageNumberManager
 
 pygame.init()
 clock = pygame.time.Clock()
 
-#Create Screen
+# Create Screen
 pygame.display.set_caption("Computer Science NEA - Platformer")
 screen = pygame.display.set_mode(constants.WINDOW_SIZE)
 
-#Scale image function
+# ... [all your existing image loading code] ...
+
+# Scale image function
 def scale_img(image, scale):
     w = image.get_width()
     h = image.get_height()
@@ -28,9 +35,7 @@ def map_structure(structure):
             structure_data.append(row)
     return structure_data
 
-#load player images
-#player image array structure#
-#[[idle], [hit], [run], [roll]]
+# Load all your sprites (same as before - keeping your existing code)
 knight_animations = []
 knight_animation_types = ["idle", "hit", "run", "roll"]
 for animation_type in knight_animation_types:
@@ -49,7 +54,7 @@ for animation_type in enemy_animation_types:
     frames = []
     for x in range(1, 9):
         try: 
-            image = image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/enemy1/{animation_type}/enemy1_{x}.png").convert_alpha()
+            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/enemy1/{animation_type}/enemy1_{x}.png").convert_alpha()
             frames.append(scale_img(image, constants.PLAYER_SCALE))
         except FileNotFoundError:
             continue
@@ -61,15 +66,12 @@ for animation_type in friendly_animation_types:
     frames = []
     for x in range(1, 9):
         try: 
-            image = image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/friendly/{animation_type}/friendly_{x}.png").convert_alpha()
+            image = pygame.image.load(f"C:/Users/quick/OneDrive/Documents/Computer-Science-NEA/Assets/sprites/friendly/{animation_type}/friendly_{x}.png").convert_alpha()
             frames.append(scale_img(image, constants.PLAYER_SCALE))
         except FileNotFoundError:
             continue
     friendly_animations.append(frames)
 
-#load ground tilesa
-#ground tiles array structure
-#[[green_surface], [green_dirt], [stones]]
 ground_sprites = []
 ground_sprite_types = ["surface", "ground", "stone"]
 for ground_type in ground_sprite_types:
@@ -106,150 +108,327 @@ for wood_type in wood_sprite_types:
             continue
     wood_sprites.append(frames)
 
-
 structures = ["house1", "house2"]
 structures_map = {}
 for structure in structures:
     structures_map[structure] = map_structure(structure)
 
+# Initialize save system and menus
+save_system = SaveSystem()
+game_state = "main_menu"
+main_menu = MainMenu(screen)
+world_select_menu = WorldSelectMenu(screen, save_system)
 
-world = World(ground_sprites, vegetation_sprites, wood_sprites, enemy_animations, friendly_animations, structures_map, seed=68)  #use fixed seed for consistent world
-knight = Character(knight_animations)
-combat = CombatSystem()
-
-surface_y = world.get_surface_y_at_pixel(400)
-
-knight.rect.midbottom = (400, (surface_y) * constants.TILE_SIZE)
-
-#movement variables
+# Initialize game objects as None
+world = None
+knight = None
+combat = None
+damage_number_manager = None
+camera_x = 0
+camera_y = 0
 moving_left = False
 moving_right = False
+current_seed = None
+game_start_time = 0
+total_time_played = 0
 
-#camera variables
-camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
-camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
+def start_new_game(seed):
+    global world, knight, combat, camera_x, camera_y, moving_left, moving_right
+    global current_seed, game_start_time, total_time_played, damage_number_manager
+    
+    current_seed = seed
+    game_start_time = pygame.time.get_ticks()
+    total_time_played = 0
+    
+    # Create new world with selected seed
+    world = World(ground_sprites, vegetation_sprites, wood_sprites, 
+                  enemy_animations, friendly_animations, structures_map, seed=seed)
+    knight = Character(knight_animations)
+    combat = CombatSystem()
+    damage_number_manager = DamageNumberManager()
+    
+    surface_y = world.get_surface_y_at_pixel(400)
+    knight.rect.midbottom = (400, (surface_y) * constants.TILE_SIZE)
+    
+    # Reset camera
+    camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
+    camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
+    
+    # Reset movement
+    moving_left = False
+    moving_right = False
 
-#main loop
+def load_saved_game(seed):
+    global world, knight, combat, camera_x, camera_y, moving_left, moving_right
+    global current_seed, game_start_time, total_time_played, damage_number_manager
+    
+    save_data = save_system.load_game(seed)
+    if not save_data:
+        print("Failed to load game, starting new game instead")
+        start_new_game(seed)
+        return
+    
+    current_seed = seed
+    total_time_played = save_data['time_played']
+    game_start_time = pygame.time.get_ticks()
+    
+    # Create world and restore saved world data
+    world = World(ground_sprites, vegetation_sprites, wood_sprites, 
+                  enemy_animations, friendly_animations, structures_map, seed=seed)
+    world.world = save_data['world']
+    
+    # Create knight and restore position/state
+    knight = Character(knight_animations)
+    knight.rect.x, knight.rect.y = save_data['player_pos']
+    knight.health = save_data['player_health']
+    knight.flip = save_data['player_flip']
+    
+    # Recreate enemies from saved data
+    world.enemies_spawned = []
+    for enemy_data in save_data['enemies']:
+        enemy = Enemy(enemy_animations, spawn_pos=(0, 0))
+        enemy.rect.x, enemy.rect.y = enemy_data['pos']
+        enemy.health = enemy_data['health']
+        enemy.flip = enemy_data['flip']
+        enemy.action = enemy_data['action']
+        world.enemies_spawned.append(enemy)
+    
+    # Recreate friendlies from saved data
+    world.friendlies_spawned = []
+    for friendly_data in save_data['friendlies']:
+        friendly = Friendly(friendly_animations, spawn_pos=(0, 0))
+        friendly.rect.x, friendly.rect.y = friendly_data['pos']
+        friendly.flip = friendly_data['flip']
+        friendly.action = friendly_data['action']
+        world.friendlies_spawned.append(friendly)
+    
+    combat = CombatSystem()
+    damage_number_manager = DamageNumberManager()
+    
+    # Set camera to player position
+    camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
+    camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
+    
+    # Reset movement
+    moving_left = False
+    moving_right = False
+    
+    print(f"Game loaded! Time played: {save_system.format_time(total_time_played)}")
+
+def save_current_game():
+    global world, knight, current_seed, game_start_time, total_time_played
+    
+    if world is None or knight is None:
+        return
+    
+    # Calculate total time played
+    session_time = pygame.time.get_ticks() - game_start_time
+    total_time = total_time_played + session_time
+    
+    success = save_system.save_game(
+        world, 
+        world.enemies_spawned,
+        world.friendlies_spawned,
+        knight, 
+        total_time, 
+        current_seed
+    )
+    
+    if success:
+        print(f"Game saved! Total time played: {save_system.format_time(total_time)}")
+
+# Main loop
 run = True
 while run:
-    screen.fill(constants.BG)
-
-    #update world chunks around player
-    world.update_chunks_around_player(knight.rect.centerx, knight.rect.centery)
-
-    #calculate target camera position (centered on player)
-    target_camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
-    target_camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
-
-    #smooth camera movement
-    camera_speed = 1
-    camera_x += (target_camera_x - camera_x) * camera_speed
-    camera_y += (target_camera_y - camera_y) * camera_speed
-
-    #draw world
-    world.update_chunks_around_player(knight.rect.centerx, knight.rect.centery)
-    world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
-
-    #get obstacles for collision detection
-    knight_obstacles = world.get_obstacles_in_area(knight)
-
-    #handle input
-    knight.vel_x = 0
-    if moving_right:
-        knight.vel_x = constants.PLAYER_SPEED
-    if moving_left:
-        knight.vel_x = -constants.PLAYER_SPEED
-
-    knight.move(knight_obstacles)
-    knight.update()
-
-    # Calculate player screen position
-    player_screen_x = knight.rect.x - camera_x
-    player_screen_y = knight.rect.y - camera_y
-
-
-    for enemy in world.enemies_spawned:
-        if enemy.action == 0:
-            tiles_around_enemy = 1
-            enemy_obstacles = world.get_obstacles_in_area(enemy, tiles_around_enemy)
-        else: 
-            enemy_obstacles = world.get_obstacles_in_area(enemy)
-
-        enemy_screen_x = enemy.rect.x - camera_x 
-        enemy_screen_y = enemy.rect.y - camera_y
+    
+    if game_state == "main_menu":
+        # Main menu state
+        main_menu.draw()
         
-        enemy.updateAi(enemy_obstacles, knight)
-
-        enemy.draw_at_position(screen, (enemy_screen_x, enemy_screen_y))
-
-    for friendly in world.friendlies_spawned:
-        friendly_screen_x = friendly.rect.x - camera_x 
-        friendly_screen_y = friendly.rect.y - camera_y
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                run = False
+            
+            if event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    action = main_menu.handle_click(pygame.mouse.get_pos())
+                    if action == "world_select":
+                        game_state = "world_select"
+                    elif action == "quit":
+                        run = False
+    
+    elif game_state == "world_select":
+        # World selection menu
+        world_select_menu.draw()
         
-        friendly.updateAi(knight, screen)
-
-        friendly.draw_at_position(screen, (friendly_screen_x, friendly_screen_y))
-
-    knight.draw_at_position(screen, (player_screen_x, player_screen_y))
-
-    #event handler
-    for event in pygame.event.get():
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                run = False
+            
+            if event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    result = world_select_menu.handle_click(pygame.mouse.get_pos())
+                    if result == "back":
+                        game_state = "main_menu"
+                    elif result == "refresh":
+                        pass
+                    elif result and result[0] == "new_game":
+                        seed = result[1]
+                        start_new_game(seed)
+                        game_state = "playing"
+                    elif result and result[0] == "load_game":
+                        seed = result[1]
+                        load_saved_game(seed)
+                        game_state = "playing"
+    
+    elif game_state == "playing":
+        # Game state
+        screen.fill(constants.BG)
         
-        if event.type == QUIT:
-            run = False
-
-        if event.type == MOUSEBUTTONDOWN:
-            #get mouse position
-            mouse_x, mouse_y = pygame.mouse.get_pos()
+        # Update world chunks around player
+        player_tile_x = knight.rect.centerx // constants.TILE_SIZE
+        player_tile_y = knight.rect.centery // constants.TILE_SIZE
+        world.update_chunks_around_player(player_tile_x, player_tile_y)
+        
+        # Calculate target camera position
+        target_camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
+        target_camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
+        
+        # Smooth camera movement
+        camera_speed = 1
+        camera_x += (target_camera_x - camera_x) * camera_speed
+        camera_y += (target_camera_y - camera_y) * camera_speed
+        
+        # Draw world
+        world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
+        
+        # Get obstacles for collision detection
+        knight_obstacles = world.get_obstacles_in_area(knight)
+        
+        # Handle input
+        knight.vel_x = 0
+        if moving_right:
+            knight.vel_x = constants.PLAYER_SPEED
+        if moving_left:
+            knight.vel_x = -constants.PLAYER_SPEED
+        
+        knight.move(knight_obstacles)
+        knight.update()
+        
+        # Calculate player screen position
+        player_screen_x = knight.rect.x - camera_x
+        player_screen_y = knight.rect.y - camera_y
+        
+        # Update and draw enemies
+        for enemy in world.enemies_spawned:
+            if enemy.action == 0:
+                tiles_around_enemy = 1
+                enemy_obstacles = world.get_obstacles_in_area(enemy, tiles_around_enemy)
+            else: 
+                enemy_obstacles = world.get_obstacles_in_area(enemy)
             
-            #convert screen coordinates to world coordinates using camera offset
-            world_x = mouse_x + camera_x
-            world_y = mouse_y + camera_y
+            enemy_screen_x = enemy.rect.x - camera_x 
+            enemy_screen_y = enemy.rect.y - camera_y
             
-            #convert world coordinates to tile coordinates
-            tile_x = world_x // constants.TILE_SIZE
-            tile_y = world_y // constants.TILE_SIZE
+            enemy.updateAi(enemy_obstacles, knight, damage_number_manager)
+            enemy.draw_at_position(screen, (enemy_screen_x, enemy_screen_y))
+        
+        # Update and draw friendlies
+        for friendly in world.friendlies_spawned:
+            friendly_screen_x = friendly.rect.x - camera_x 
+            friendly_screen_y = friendly.rect.y - camera_y
             
-            #check if player is in range of this tile
-            knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
-
-            if event.button == 1:
-                for enemy in world.enemies_spawned:
-                    if combat.in_attack_range(knight, enemy, constants.PLAYER_HIT_RANGE):
-                        if combat.can_attack(knight, constants.PLAYER_HIT_RANGE):
-                            damage = combat.apply_damage(knight, enemy)
-                            knight.action = 1  # hit animation
-                            print("Enemy hit for", damage)
-
-                            if enemy.health <= 0:
-                                world.enemies_spawned.remove(enemy)
-
-                if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
-                    world.remove_block_at(tile_x, tile_y, knight)
+            friendly.updateAi(knight, screen)
+            friendly.draw_at_position(screen, (friendly_screen_x, friendly_screen_y))
+        
+        knight.draw_at_position(screen, (player_screen_x, player_screen_y))
+        
+        # Update and draw damage numbers
+        damage_number_manager.update()
+        damage_number_manager.draw(screen, camera_x, camera_y)
+        
+        # Display time played in top-right corner
+        current_session_time = pygame.time.get_ticks() - game_start_time
+        total_time = total_time_played + current_session_time
+        time_font = pygame.font.SysFont("arial", 20)
+        time_text = time_font.render(f"Time: {save_system.format_time(total_time)}", True, (255, 255, 255))
+        screen.blit(time_text, (constants.WINDOW_SIZE[0] - 150, 10))
+        
+        # Display player health
+        health_text = time_font.render(f"Health: {int(knight.health)}", True, (255, 50, 50))
+        screen.blit(health_text, (10, 10))
+        
+        # Event handler
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                save_current_game()
+                run = False
             
-            if event.button == 3:
-                #inflating player's hitbox to check for mouse collision with the tile the player is in
-                tile_rect = knight.rect.inflate(80,80)
-
-                if knight.is_tile_in_range(tile_x, tile_y, knight_obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
-                    world.add_block_at(tile_x, tile_y, knight)
-
-        #key pressed
-        if event.type == KEYDOWN:
-            if event.key == K_a:
-                moving_left = True
-            if event.key == K_d:
-                moving_right = True
-            if event.key in (K_w, K_SPACE):
-                knight.jump()
-
-        #key released
-        if event.type == KEYUP:
-            if event.key == K_a:
-                moving_left = False
-            if event.key == K_d:
-                moving_right = False
-
+            if event.type == MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                world_x = mouse_x + camera_x
+                world_y = mouse_y + camera_y
+                tile_x = world_x // constants.TILE_SIZE
+                tile_y = world_y // constants.TILE_SIZE
+                knight_tile_obstacles = world.get_obstacles_in_area(knight, tiles_around_character = constants.PLAYER_HIT_RANGE // constants.TILE_SIZE)
+                
+                if event.button == 1:
+                    # Attack enemies
+                    attacked_any_enemy = False
+                    for enemy in world.enemies_spawned[:]:
+                        if combat.in_attack_range(knight, enemy, constants.PLAYER_HIT_RANGE):
+                            if combat.can_attack(knight, constants.PLAYER_HIT_RANGE):
+                                damage, is_critical = combat.apply_damage(knight, enemy)
+                                knight.action = 1
+                                knight.frame_index = 0
+                                
+                                # Spawn damage number at enemy position
+                                damage_number_manager.add_damage_number(
+                                    enemy.rect.centerx,
+                                    enemy.rect.top - 10,
+                                    damage,
+                                    is_critical
+                                )
+                                
+                                print(f"Enemy hit for {damage} damage! Enemy health: {enemy.health}")
+                                
+                                if enemy.health <= 0:
+                                    world.enemies_spawned.remove(enemy)
+                                    print("Enemy defeated!")
+                                
+                                attacked_any_enemy = True
+                                break
+                    
+                    # Only mine blocks if we didn't attack an enemy
+                    if not attacked_any_enemy:
+                        if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
+                            world.remove_block_at(tile_x, tile_y, knight)
+                
+                if event.button == 3:
+                    tile_rect = knight.rect.inflate(80,80)
+                    if knight.is_tile_in_range(tile_x, tile_y, knight_obstacles, 1) and not tile_rect.collidepoint((world_x, world_y)):
+                        world.add_block_at(tile_x, tile_y, knight)
+            
+            if event.type == KEYDOWN:
+                if event.key == K_a:
+                    moving_left = True
+                if event.key == K_d:
+                    moving_right = True
+                if event.key in (K_w, K_SPACE):
+                    knight.jump()
+                if event.key == K_ESCAPE:
+                    save_current_game()
+                    damage_number_manager.clear()  # Clear damage numbers when leaving
+                    game_state = "main_menu"
+                if event.key == K_F5:
+                    save_current_game()
+            
+            if event.type == KEYUP:
+                if event.key == K_a:
+                    moving_left = False
+                if event.key == K_d:
+                    moving_right = False
+    
     pygame.display.update()
     clock.tick(constants.FPS)
 

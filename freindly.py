@@ -28,6 +28,8 @@ class Friendly(Character):
 
         self.dialogue = "Hello, Traveller"
 
+        self.health = 10000
+
     def updateAi(self, player, surface):
         dx = self.rect.centerx - player.rect.centerx
         dy = self.rect.centery - player.rect.centery

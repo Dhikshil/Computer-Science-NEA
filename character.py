@@ -32,13 +32,29 @@ class Character(pygame.sprite.Sprite):
         self.health = 100
         self.damage = 20
         self.cooldown = 200
+        
+        # Hit animation control
+        self.is_hit = False
+        self.hit_animation_finished = False
 
     def update_action(self):
+        # Don't change action if currently playing hit animation
+        if self.is_hit and not self.hit_animation_finished:
+            return
+            
         # update action
         if self.vel_x != 0:
             self.action = 2  # running
         else:
             self.action = 0  # idle
+
+    def take_damage(self, damage):
+        """Called when character takes damage - triggers hit animation"""
+        self.health -= damage
+        self.is_hit = True
+        self.hit_animation_finished = False
+        self.action = 1  # Hit animation
+        self.frame_index = 0  # Reset to first frame of hit animation
 
     def move(self, obstacles):  
         # Apply gravity
@@ -82,7 +98,11 @@ class Character(pygame.sprite.Sprite):
             self.jumping = True
 
     def update(self):
-        animation_cooldown = 120
+        # Different animation speeds for different actions
+        if self.action == 1:  # Hit animation
+            animation_cooldown = 80  # Faster for hit
+        else:
+            animation_cooldown = 120  # Normal speed
 
         #handle animation
         if pygame.time.get_ticks() - self.update_time > animation_cooldown:
@@ -91,6 +111,12 @@ class Character(pygame.sprite.Sprite):
 
         #check if animation finished
         if self.frame_index >= len(self.animations[self.action]):
+            # If hit animation just finished
+            if self.action == 1:
+                self.is_hit = False
+                self.hit_animation_finished = True
+                self.action = 0  # Return to idle
+            
             self.frame_index = 0
 
         #update image

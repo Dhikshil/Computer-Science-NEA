@@ -7,7 +7,7 @@ from combat import CombatSystem
 combat = CombatSystem()
 
 class Enemy(Character):
-    def __init__(self, animations, spawn_pos):#
+    def __init__(self, animations, spawn_pos):
         # hitbox and position
         hitbox_height = constants.TILE_SIZE // constants.TILE_SCALE
         hitbox_width = constants.TILE_SIZE // constants.TILE_SCALE
@@ -37,15 +37,29 @@ class Enemy(Character):
         self.attack_cooldown = 1200
         self.attack_cooldown_ticks = pygame.time.get_ticks()
         self.health = 40
+        
+        # Hit animation control
+        self.is_hit = False
+        self.hit_animation_finished = False
 
     def update_action(self):
+        # Don't change action if currently playing hit animation
+        if self.is_hit and not self.hit_animation_finished:
+            return
+            
         # update action
         if self.vel_x != 0:
             self.action = 2  # running
         else:
             self.action = 0  # idle
 
-    def updateAi(self, obstacles, player):
+    def updateAi(self, obstacles, player, damage_number_manager=None):
+        # Don't move or attack while playing hit animation
+        if self.is_hit and not self.hit_animation_finished:
+            self.move(obstacles)
+            self.update()
+            return
+        
         self.vel_x = 0
         dx = self.rect.centerx - player.rect.centerx
         dy = self.rect.centery - player.rect.centery
@@ -64,7 +78,18 @@ class Enemy(Character):
 
         elif distance <= self.attack_range:
             if combat.can_attack(self, self.attack_cooldown):
-                combat.apply_damage(self, player)
+                damage, is_critical = combat.apply_damage(self, player)
+                
+                # Spawn damage number at player position
+                if damage_number_manager:
+                    damage_number_manager.add_damage_number(
+                        player.rect.centerx,
+                        player.rect.top - 10,  # Slightly above player
+                        damage,
+                        is_critical
+                    )
+                
+                print(f"Player hit for {damage} damage! Player health: {player.health}")
 
         else:
             self.action = 0  # idle

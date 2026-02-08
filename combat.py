@@ -1,10 +1,12 @@
 import constants
 import pygame
 import math
+import random
 
 class CombatSystem():
     def __init__(self):
         self.attack_cooldowns = {}
+        self.crit_chance = 0.15  # 15% chance for critical hit
 
     def can_attack(self, attacker, cooldown_ms):
         now = pygame.time.get_ticks()
@@ -22,6 +24,14 @@ class CombatSystem():
         return distance <= range_px
 
     def apply_damage(self, attacker, target):
-        damage = attacker.damage_calculator(None)
-        target.health -= damage
-        return damage
+        base_damage = attacker.damage_calculator(None)
+        
+        # Check for critical hit
+        is_critical = random.random() < self.crit_chance
+        if is_critical:
+            damage = base_damage * 1.5  # Crits do 50% more damage
+        else:
+            damage = base_damage
+        
+        target.take_damage(damage)
+        return damage, is_critical
