@@ -135,7 +135,9 @@ while run:
     screen.fill(constants.BG)
 
     #update world chunks around player
-    world.update_chunks_around_player(knight.rect.centerx, knight.rect.centery)
+    player_tile_x = knight.rect.centerx // constants.TILE_SIZE
+    player_tile_y = knight.rect.centery // constants.TILE_SIZE
+    world.update_chunks_around_player(player_tile_x, player_tile_y)
 
     #calculate target camera position (centered on player)
     target_camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
@@ -147,7 +149,6 @@ while run:
     camera_y += (target_camera_y - camera_y) * camera_speed
 
     #draw world
-    world.update_chunks_around_player(knight.rect.centerx, knight.rect.centery)
     world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
 
     #get obstacles for collision detection
