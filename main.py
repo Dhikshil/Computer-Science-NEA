@@ -176,7 +176,6 @@ while run:
             if knight.is_tile_in_range(tile_x, tile_y, knight_tile_obstacles, 0):
                 world.remove_block_at(tile_x, tile_y, knight)
             
-            
         
         if event.type == MOUSEBUTTONDOWN and event.button == 3:  #right mouse button
             #get mouse position

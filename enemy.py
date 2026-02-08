@@ -46,10 +46,11 @@ class Enemy(Character):
         if distance <= self.detection_range:
             self.action = 2  # run
 
-            if dx > 5:
+            if dx > 20:
                 self.vel_x = -constants.PLAYER_SPEED * 0.6
-            elif dx < -5:
+            elif dx < -20:
                 self.vel_x = constants.PLAYER_SPEED * 0.6
+                
 
             if constants.TILE_SIZE <= dy <= constants.TILE_SIZE * 2:
                 self.jump()

@@ -212,10 +212,10 @@ class World():
         character_x = character.rect.left
         character_y = character.rect.bottom
 
-        start_x = int(character_x // constants.TILE_SIZE) - 1
-        end_x = start_x + tiles_around_character + 1
-        start_y = int(character_y // constants.TILE_SIZE) - 1
-        end_y = start_y + tiles_around_character + 1
+        start_x = int(character_x // constants.TILE_SIZE) - tiles_around_character 
+        end_x = start_x + 2 * tiles_around_character + 1
+        start_y = int(character_y // constants.TILE_SIZE) - tiles_around_character 
+        end_y = start_y + 2 * tiles_around_character + 1
 
         for tile_x in range(start_x, end_x):
             for tile_y in range(start_y, end_y):
