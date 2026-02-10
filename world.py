@@ -333,15 +333,6 @@ class World():
                 "height": house_height
             }
 
-
-    def chunk_contains_surface(self, chunk_x, chunk_y):
-        chunk = self.world[(chunk_x, chunk_y)]
-        for tile in chunk.values():
-            if tile["tile_type"] == self.tile_types["surface_tile"]:
-                return True
-        return False
-
-
     def get_obstacles_in_area(self, character, tiles_around_character = 3):
         obstacles = []
 
