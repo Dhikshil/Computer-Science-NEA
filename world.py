@@ -161,6 +161,7 @@ class World():
         if key not in self.world:
             self.world[key] = self.generate_chunk(chunk_x, chunk_y)
             self.spawn_enemies(chunk_x)
+            self.try_spawn_house_on_surface(chunk_x, chunk_y)
 
     def get_tile_at(self, tile_x, tile_y):
         chunk_x = tile_x // self.chunk_size
@@ -207,7 +208,7 @@ class World():
 
         return self.base_height  # fallback so it never returns None
 
-#spawn house function, brings together all the other functions
+    #spawn house function, brings together all the other functions
     def try_spawn_house_on_surface(self, chunk_x, chunk_y, spawn_chance=0.3):
         house_width = len(self.structures_map["house1"][0])
         surface_runs = self.find_surface_runs_in_chunk(chunk_x, chunk_y, house_width)
@@ -266,7 +267,6 @@ class World():
     def place_house(self, house_map, anchor=None, base_x = None, side="right"):
         house_height = len(house_map)
         house_width = len(house_map[0])
-
         if anchor is not None:
             if side == "right":
                 base_x = anchor["x"] + anchor["width"]
@@ -279,10 +279,8 @@ class World():
 
         for row_idx, row in enumerate(house_map):
             for col_idx, tile in enumerate(row):
-
                 tile_x = base_x + col_idx
                 tile_y = surface_y - (house_height - 1 - row_idx)
-
                 chunk_x = tile_x // self.chunk_size
                 chunk_y = tile_y // self.chunk_size
                 local_x = tile_x % self.chunk_size
@@ -292,46 +290,16 @@ class World():
                     self.load_chunk(chunk_x, chunk_y)
 
                 if tile == -1:
-                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
-                        "tile_type": self.tile_types["air_tile"],
-                        "solid": False,
-                        "image_index": 0
-                    })
-
-                # In the place_house method, where you create friendlies, modify this section:
-
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({"tile_type": self.tile_types["air_tile"],"solid": False,"image_index": 0})
                 elif tile == 6:
-                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
-                        "tile_type": self.tile_types["air_tile"],
-                        "solid": False,
-                        "image_index": 0
-                    })
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({"tile_type": self.tile_types["air_tile"],"solid": False,"image_index": 0})
                     
-                    shop_types = ["general_store", "weapon_shop", "mixed_shop"]
-                    shop_type = random.choice(shop_types)
-                    
-                    friendly = Friendly(
-                        self.friendly_animations, 
-                        ((chunk_x * self.chunk_size + local_x + 1) * constants.TILE_SIZE, 
-                        (chunk_y * self.chunk_size + local_y + 1) * constants.TILE_SIZE),
-                        shop_type=shop_type
-                    )
+                    friendly = Friendly(self.friendly_animations, ((chunk_x * self.chunk_size + local_x + 1) * constants.TILE_SIZE, (chunk_y * self.chunk_size + local_y + 1) * constants.TILE_SIZE))
                     self.friendlies_spawned.append(friendly)
-
                 else:
-                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({
-                        "tile_type": tile,
-                        "solid": True,
-                        "image_index": 0
-                    })
-        # return anchor info for attached buildings
+                    self.world[(chunk_x, chunk_y)][(local_x, local_y)].update({"tile_type": tile,"solid": True,"image_index": 0})
         if anchor is None:
-            return {
-                "x": base_x,
-                "y": surface_y,
-                "width": house_width,
-                "height": house_height
-            }
+            return {"x": base_x,"y": surface_y,"width": house_width,"height": house_height}
 
     def get_obstacles_in_area(self, character, tiles_around_character = 3):
         obstacles = []
