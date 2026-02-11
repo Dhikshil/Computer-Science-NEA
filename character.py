@@ -41,14 +41,15 @@ class Character(pygame.sprite.Sprite):
         self.hotbar_slots = 9  # Number of hotbar slots
         self.hotbar = [None] * self.hotbar_slots  # [item_id or None, ...]
         self.selected_hotbar_slot = 0  # Currently selected slot (0-8)
-        
+
+        self.spawn_x = 0
+        self.spawn_y = 0
+            
     def add_item(self, item_id, quantity=1):
         item_info = get_item_info(item_id)
         if not item_info:
             print(f"Unknown item: {item_id}")
             return False
-        
-        max_stack = item_info["max_stack"]
         
         # Add to existing stack or create new entry
         if item_id in self.inventory:
@@ -106,13 +107,7 @@ class Character(pygame.sprite.Sprite):
                 self.remove_item(item_id, 1)
                 print(f"Used {item_info['name']}, healed {item_info['heal_amount']} HP")
                 return True
-        
-        # Handle weapons (for future implementation)
-        elif item_info["type"] == "weapon":
-            # Could equip weapon here
-            print(f"Equipped {item_info['name']}")
-            return True
-        
+            
         return False
     
     def get_selected_item(self):
@@ -251,3 +246,28 @@ class Character(pygame.sprite.Sprite):
         # Calculate where to draw the image based on the collision rect position
         image_pos = (position[0] + (self.rect.width - self.image.get_width()) // 2, position[1] + self.rect.height - self.image.get_height())
         surface.blit(self.image, image_pos)
+    
+    def is_alive(self):
+        return self.health > 0
+
+    def respawn(self, spawn_x, spawn_y):
+        self.rect.x = spawn_x
+        self.rect.y = spawn_y
+        self.health = self.max_health
+        self.vel_x = 0
+        self.vel_y = 0
+        self.jumping = False
+        self.is_hit = False
+        self.hit_animation_finished = False
+        self.action = 0
+        
+        # Clear inventory except coins
+        coins = self.get_item_count("coin")
+        self.inventory = {"coin": coins} if coins > 0 else {}
+        
+        # Reset hotbar
+        self.hotbar = [None] * self.hotbar_slots
+        if coins > 0:
+            self.hotbar[0] = "coin"  # Put coins in first slot
+        
+        self.selected_hotbar_slot = 0

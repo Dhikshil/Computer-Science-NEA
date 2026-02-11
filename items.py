@@ -4,7 +4,6 @@ ITEMS = {
     "coin": {
         "name": "Coin",
         "type": "currency",
-        "max_stack": 999,
         "description": "Used to buy items",
         "placeable": False
     },
@@ -13,7 +12,6 @@ ITEMS = {
     "wood": {
         "name": "Wood",
         "type": "resource",
-        "max_stack": 64,
         "description": "Basic building material",
         "placeable": True,
         "price": 2  # Price in coins
@@ -21,7 +19,6 @@ ITEMS = {
     "apple": {
         "name": "Apple",
         "type": "consumable",
-        "max_stack": 16,
         "description": "Restores 10 health",
         "heal_amount": 10,
         "placeable": False,
@@ -30,7 +27,6 @@ ITEMS = {
     "stone": {
         "name": "Stone",
         "type": "resource",
-        "max_stack": 64,
         "description": "Hard building material",
         "placeable": True,
         "price": 3
@@ -38,7 +34,6 @@ ITEMS = {
     "dirt": {
         "name": "Dirt",
         "type": "resource",
-        "max_stack": 64,
         "description": "Soft earth",
         "placeable": True,
         "price": 1
@@ -48,7 +43,6 @@ ITEMS = {
     "wooden_sword": {
         "name": "Wooden Sword",
         "type": "weapon",
-        "max_stack": 1,
         "description": "Basic melee weapon",
         "damage": 15,
         "durability": 50,
@@ -58,7 +52,6 @@ ITEMS = {
     "stone_sword": {
         "name": "Stone Sword",
         "type": "weapon",
-        "max_stack": 1,
         "description": "Stronger melee weapon",
         "damage": 25,
         "durability": 100,
@@ -68,7 +61,6 @@ ITEMS = {
     "bow": {
         "name": "Bow",
         "type": "weapon",
-        "max_stack": 1,
         "description": "Ranged weapon",
         "damage": 20,
         "durability": 80,

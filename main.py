@@ -4,7 +4,7 @@ import constants
 from character import Character
 from combat import CombatSystem
 from world import World
-from menus import MainMenu, WorldSelectMenu
+from menus import MainMenu, WorldSelectMenu, OptionsMenu
 from save_system import SaveSystem
 from enemy import Enemy
 from freindly import Friendly
@@ -121,6 +121,7 @@ save_system = SaveSystem()
 game_state = "main_menu"
 main_menu = MainMenu(screen)
 world_select_menu = WorldSelectMenu(screen, save_system)
+options_menu = OptionsMenu(screen)
 
 # Initialize game objects as None
 world = None
@@ -157,6 +158,10 @@ def start_new_game(seed):
     
     surface_y = world.get_surface_y_at_pixel(400)
     knight.rect.midbottom = (400, (surface_y) * constants.TILE_SIZE)
+    
+    # Store spawn point for respawning
+    knight.spawn_x = 400
+    knight.spawn_y = (surface_y) * constants.TILE_SIZE
     
     # Reset camera
     camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
@@ -274,6 +279,8 @@ while run:
                     action = main_menu.handle_click(pygame.mouse.get_pos())
                     if action == "world_select":
                         game_state = "world_select"
+                    elif action == "options":
+                        game_state = "options"  # Add this
                     elif action == "quit":
                         run = False
     
@@ -300,8 +307,51 @@ while run:
                         seed = result[1]
                         load_saved_game(seed)
                         game_state = "playing"
+
+    elif game_state == "options":
+        # Options menu state
+        options_menu.draw()
+        
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                run = False
+            
+            if event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    result = options_menu.handle_click(pygame.mouse.get_pos())
+                    if result == "back":
+                        game_state = "main_menu"
+            
+            if event.type == KEYDOWN:
+                if event.key == K_UP:
+                    options_menu.navigate(-1)
+                elif event.key == K_DOWN:
+                    options_menu.navigate(1)
+                elif event.key == K_RETURN:
+                    options_menu.toggle_selected()
+                elif event.key == K_ESCAPE:
+                    game_state = "main_menu"
     
     elif game_state == "playing":
+        # Check for death BEFORE updating anything
+        if not knight.is_alive():
+            # Player died - respawn
+            knight.respawn(knight.spawn_x, knight.spawn_y)
+            
+            # Reset camera to spawn
+            camera_x = knight.rect.centerx - constants.WINDOW_SIZE[0] // 2
+            camera_y = knight.rect.centery - constants.WINDOW_SIZE[1] // 2
+            
+            # Clear damage numbers and reset movement
+            damage_number_manager.clear()
+            moving_left = False
+            moving_right = False
+            
+            # Show death message
+            print(f"You died! Lost all items except {knight.get_item_count('coin')} coins")
+        
+        screen.fill(constants.BG)
+
         # Game state
         screen.fill(constants.BG)
         
@@ -318,7 +368,7 @@ while run:
         camera_speed = 1
         camera_x += (target_camera_x - camera_x) * camera_speed
         camera_y += (target_camera_y - camera_y) * camera_speed
-        
+
         # Draw world
         world.draw(screen, camera_x, camera_y, constants.WINDOW_SIZE[0], constants.WINDOW_SIZE[1])
         
@@ -403,10 +453,14 @@ while run:
                     for enemy in world.enemies_spawned[:]:
                         if combat.in_attack_range(knight, enemy, constants.PLAYER_HIT_RANGE):
                             if combat.can_attack(knight, constants.PLAYER_HIT_RANGE):
-                                weapon = None
-                                if get_item_info(knight.get_selected_item())["type"] == "weapon":
-                                    weapon = get_item_info(knight.get_selected_item())
-                                damage, is_critical = combat.apply_damage(knight, enemy, weapon)
+                                if get_item_info(knight.get_selected_item()):
+                                    if get_item_info(knight.get_selected_item())["type"] == "weapon":
+                                        weapon = get_item_info(knight.get_selected_item())
+                                        damage, is_critical = combat.apply_damage(knight, enemy, weapon)
+                                    else:
+                                        damage, is_critical = combat.apply_damage(knight, enemy)
+                                else:
+                                    damage, is_critical = combat.apply_damage(knight, enemy)
                                 knight.action = 1
                                 knight.frame_index = 0
                                 
@@ -415,7 +469,6 @@ while run:
                                     enemy.rect.centerx,
                                     enemy.rect.top - 10,
                                     damage,
-                                    is_critical
                                 )
                                 
                                 print(f"Enemy hit for {damage} damage! Enemy health: {enemy.health}")

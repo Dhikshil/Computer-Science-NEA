@@ -75,6 +75,8 @@ class MainMenu:
     def handle_click(self, pos):
         if self.play_button.collidepoint(pos):
             return "world_select"
+        elif self.options_button.collidepoint(pos):
+            return "options"  # Add this
         elif self.quit_button.collidepoint(pos):
             return "quit"
         return None
@@ -246,3 +248,120 @@ class WorldSelectMenu:
                 return ("new_game", self.worlds[i][1])
         
         return None
+    
+class OptionsMenu:
+    def __init__(self, screen):
+        self.screen = screen
+        self.font_title = pygame.font.SysFont("arial", 60, bold=True)
+        self.font_option = pygame.font.SysFont("arial", 32)
+        self.font_value = pygame.font.SysFont("arial", 28)
+        
+        # Options that will be implemented later
+        self.options = {
+            "master_volume": 100,
+            "music_volume": 80,
+            "sfx_volume": 100,
+            "show_fps": False,
+            "fullscreen": False,
+        }
+        
+        # Current selection
+        self.selected_option = 0
+        self.option_names = list(self.options.keys())
+        
+        # Back button
+        self.back_button = pygame.Rect(50, 50, 120, 50)
+    
+    def draw(self):
+        self.screen.fill((30, 30, 50))
+        
+        # Draw title
+        title = self.font_title.render("OPTIONS", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(constants.WINDOW_SIZE[0] // 2, 80))
+        self.screen.blit(title, title_rect)
+        
+        # Draw notice that options are not functional yet
+        notice_font = pygame.font.SysFont("arial", 20)
+        notice = notice_font.render("(Settings currently for display only)", True, (150, 150, 150))
+        notice_rect = notice.get_rect(center=(constants.WINDOW_SIZE[0] // 2, 130))
+        self.screen.blit(notice, notice_rect)
+        
+        # Draw options
+        start_y = 200
+        spacing = 80
+        mouse_pos = pygame.mouse.get_pos()
+        
+        for i, option_name in enumerate(self.option_names):
+            y = start_y + i * spacing
+            
+            # Option name
+            display_name = option_name.replace("_", " ").title()
+            
+            # Highlight if selected
+            if i == self.selected_option:
+                color = (100, 150, 255)
+            else:
+                color = (255, 255, 255)
+            
+            name_text = self.font_option.render(display_name, True, color)
+            name_rect = name_text.get_rect(midleft=(100, y))
+            self.screen.blit(name_text, name_rect)
+            
+            # Option value
+            value = self.options[option_name]
+            if isinstance(value, bool):
+                value_str = "ON" if value else "OFF"
+                value_color = (100, 255, 100) if value else (255, 100, 100)
+            else:
+                value_str = str(value)
+                value_color = (200, 200, 200)
+            
+            value_text = self.font_value.render(value_str, True, value_color)
+            value_rect = value_text.get_rect(midright=(constants.WINDOW_SIZE[0] - 100, y))
+            self.screen.blit(value_text, value_rect)
+            
+            # Draw slider for volume options
+            if "volume" in option_name:
+                slider_x = constants.WINDOW_SIZE[0] - 300
+                slider_y = y + 5
+                slider_width = 150
+                slider_height = 10
+                
+                # Background
+                pygame.draw.rect(self.screen, (60, 60, 60), 
+                               (slider_x, slider_y, slider_width, slider_height))
+                
+                # Fill
+                fill_width = int((value / 100) * slider_width)
+                pygame.draw.rect(self.screen, (100, 150, 255),
+                               (slider_x, slider_y, fill_width, slider_height))
+        
+        # Draw back button
+        back_color = (100, 100, 100) if self.back_button.collidepoint(mouse_pos) else (60, 60, 60)
+        pygame.draw.rect(self.screen, back_color, self.back_button)
+        pygame.draw.rect(self.screen, (255, 255, 255), self.back_button, 2)
+        back_text = self.font_option.render("BACK", True, (255, 255, 255))
+        back_rect = back_text.get_rect(center=self.back_button.center)
+        self.screen.blit(back_text, back_rect)
+        
+        # Draw controls at bottom
+        controls_font = pygame.font.SysFont("arial", 18)
+        controls = controls_font.render("Use UP/DOWN arrows to navigate | Enter to toggle", 
+                                       True, (150, 150, 150))
+        controls_rect = controls.get_rect(center=(constants.WINDOW_SIZE[0] // 2, 
+                                                  constants.WINDOW_SIZE[1] - 50))
+        self.screen.blit(controls, controls_rect)
+    
+    def handle_click(self, pos):
+        if self.back_button.collidepoint(pos):
+            return "back"
+        return None
+    
+    def navigate(self, direction):
+        self.selected_option = (self.selected_option + direction) % len(self.option_names)
+    
+    def toggle_selected(self):
+        option_name = self.option_names[self.selected_option]
+        value = self.options[option_name]
+        if isinstance(value, bool):
+            self.options[option_name] = not value
