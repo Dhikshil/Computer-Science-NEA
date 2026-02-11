@@ -403,7 +403,10 @@ while run:
                     for enemy in world.enemies_spawned[:]:
                         if combat.in_attack_range(knight, enemy, constants.PLAYER_HIT_RANGE):
                             if combat.can_attack(knight, constants.PLAYER_HIT_RANGE):
-                                damage, is_critical = combat.apply_damage(knight, enemy)
+                                weapon = None
+                                if get_item_info(knight.get_selected_item())["type"] == "weapon":
+                                    weapon = get_item_info(knight.get_selected_item())
+                                damage, is_critical = combat.apply_damage(knight, enemy, weapon)
                                 knight.action = 1
                                 knight.frame_index = 0
                                 

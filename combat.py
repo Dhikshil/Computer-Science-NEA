@@ -23,8 +23,8 @@ class CombatSystem():
         )
         return distance <= range_px
 
-    def apply_damage(self, attacker, target):
-        base_damage = attacker.damage_calculator(None)
+    def apply_damage(self, attacker, target, weapon = None):
+        base_damage = attacker.damage_calculator(weapon)
         
         # Check for critical hit
         is_critical = random.random() < self.crit_chance

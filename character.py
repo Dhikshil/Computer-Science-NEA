@@ -245,7 +245,7 @@ class Character(pygame.sprite.Sprite):
         if weapon == None:
             return damage
         else:
-            return (damage + weapon.damage) * random.uniform(1.0, 1.2)
+            return (damage + weapon["damage"]) * random.uniform(1.0, 1.2)
 
     def draw_at_position(self, surface, position):
         # Calculate where to draw the image based on the collision rect position
